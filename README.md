@@ -87,3 +87,7 @@ PermitRootLogin prohibit-password
 O `/etc/issue` recebe o atributo imutável após a configuração para impedir que
 seja sobrescrito na inicialização. Em uma nova execução, o assistente remove o
 atributo temporariamente e garante sua reaplicação mesmo se ocorrer um erro.
+
+O `PermitRootLogin prohibit-password` é gravado diretamente no arquivo
+`/etc/ssh/sshd_config`. O assistente valida tanto a sintaxe (`sshd -t`) quanto o
+valor efetivamente interpretado pelo servidor (`sshd -T`) antes de reiniciá-lo.

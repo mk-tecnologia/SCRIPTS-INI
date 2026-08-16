@@ -2,7 +2,7 @@
 # setup-debian13.sh — Pós-instalação automatizada do Debian 13
 set -Eeuo pipefail
 
-APP_VERSION="1.0.5"
+APP_VERSION="1.0.6"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -149,13 +149,55 @@ if ! grep -qxF "$PUBLIC_KEY" /root/.ssh/authorized_keys; then
 fi
 
 log 'Configurando o acesso SSH do root somente com chave pública'
-mkdir -p /etc/ssh/sshd_config.d
-backup_file /etc/ssh/sshd_config.d/99-mktecnologia.conf
-cat > /etc/ssh/sshd_config.d/99-mktecnologia.conf <<'EOF'
-# Gerenciado por setup-debian13.sh
-PermitRootLogin prohibit-password
-EOF
+backup_file /etc/ssh/sshd_config
+if [[ -e /etc/ssh/sshd_config.d/99-mktecnologia.conf ]]; then
+    backup_file /etc/ssh/sshd_config.d/99-mktecnologia.conf
+    rm -f /etc/ssh/sshd_config.d/99-mktecnologia.conf
+fi
+
+SSHD_CONFIG_TEMP=$(mktemp /tmp/sshd_config.XXXXXX)
+awk '
+    BEGIN { global = 1; configured = 0 }
+    {
+        normalized = tolower($0)
+        sub(/^[[:space:]]+/, "", normalized)
+
+        if (global && normalized ~ /^match[[:space:]]/) {
+            if (!configured) {
+                print "PermitRootLogin prohibit-password"
+                print ""
+                configured = 1
+            }
+            global = 0
+        }
+
+        candidate = normalized
+        sub(/^#[[:space:]]*/, "", candidate)
+        if (global && candidate ~ /^permitrootlogin[[:space:]]+/) {
+            if (!configured) {
+                print "PermitRootLogin prohibit-password"
+                configured = 1
+            }
+            next
+        }
+
+        print
+    }
+    END {
+        if (global && !configured) {
+            print ""
+            print "# Gerenciado por setup-debian13.sh"
+            print "PermitRootLogin prohibit-password"
+        }
+    }
+' /etc/ssh/sshd_config > "$SSHD_CONFIG_TEMP"
+cat "$SSHD_CONFIG_TEMP" > /etc/ssh/sshd_config
+rm -f "$SSHD_CONFIG_TEMP"
+
 sshd -t
+EFFECTIVE_ROOT_LOGIN=$(sshd -T | awk '$1 == "permitrootlogin" {print $2; exit}')
+[[ $EFFECTIVE_ROOT_LOGIN == without-password || $EFFECTIVE_ROOT_LOGIN == prohibit-password ]] \
+    || die "configuração SSH efetiva inesperada: PermitRootLogin $EFFECTIVE_ROOT_LOGIN"
 systemctl restart ssh
 
 log 'Configurando fastfetch no MOTD dinâmico'
