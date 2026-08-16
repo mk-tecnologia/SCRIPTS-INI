@@ -2,7 +2,7 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.3.1"
+APP_VERSION="1.3.2"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -52,8 +52,11 @@ run_community_post_install() {
 
     log 'Preparando o post-install externo do Proxmox Community Scripts'
     backup_file /etc/apt
-    apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates whiptail
+    command -v curl >/dev/null || die 'curl é necessário para baixar o post-install externo'
+    if ! command -v whiptail >/dev/null; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y whiptail \
+            || die 'não foi possível instalar whiptail; corrija os repositórios APT e tente novamente'
+    fi
 
     curl -fsSL --connect-timeout 10 --max-time 60 --retry 2 \
         "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/${COMMUNITY_REF}/tools/pve/post-pve-install.sh" \

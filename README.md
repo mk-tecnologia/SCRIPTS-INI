@@ -74,6 +74,10 @@ sintaxe, remove do arquivo temporário o carregamento dinâmico de telemetria e
 exige uma confirmação específica. Antes da execução, `/etc/apt` é copiado para
 o diretório de backup da execução.
 
+O post-install externo roda antes de `apt-get update`, permitindo que ele
+corrija um repositório Enterprise sem assinatura antes da instalação dos
+pacotes locais.
+
 O script externo pode alterar repositórios APT, atualizar pacotes, modificar a
 interface web e oferecer uma reinicialização. Responda **não** ao reboot dentro
 dele; depois que retornar, o SCRIPTS-INI concluirá as personalizações locais.

@@ -2,7 +2,7 @@
 # install.sh — Instalador rápido do debian13-setup
 set -Eeuo pipefail
 
-INSTALLER_VERSION="1.3.1"
+INSTALLER_VERSION="1.3.2"
 DEFAULT_REPO="mk-tecnologia/SCRIPTS-INI"
 REPO="${SCRIPTS_INI_REPO:-$DEFAULT_REPO}"
 REF="${SCRIPTS_INI_REF:-}"
@@ -115,7 +115,8 @@ if [[ -z $REF ]]; then
     info 'Consultando a versão estável mais recente'
     REF=$(curl -fsSL --connect-timeout 10 --max-time 30 --retry 2 \
         -H 'Accept: application/vnd.github+json' \
-        "${API_BASE}/repos/${REPO}/releases/latest" \
+        -H 'Cache-Control: no-cache' \
+        "${API_BASE}/repos/${REPO}/releases/latest?cachebust=$(date +%s)" \
         | sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p')
     [[ -n $REF ]] || die 'não foi possível identificar a release mais recente'
 fi
