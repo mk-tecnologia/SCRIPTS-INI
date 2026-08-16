@@ -2,7 +2,7 @@
 # setup-debian13.sh — Pós-instalação automatizada do Debian 13
 set -Eeuo pipefail
 
-APP_VERSION="1.0.2"
+APP_VERSION="1.0.3"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -192,9 +192,9 @@ cat > /etc/issue <<EOF
  ██║╚██╔╝██║██╔═██╗    ██║   ██╔══╝  ██║     ██║╚██╗██║██║   ██║██║     ██║   ██║██║   ██║██║██╔══██║
  ██║ ╚═╝ ██║██║  ██╗   ██║   ███████╗╚██████╗██║ ╚████║╚██████╔╝███████╗╚██████╔╝╚██████╔╝██║██║  ██║
  ╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝╚═╝  ╚═╝
-marcos@mktecnologia.net.br
-www.mktecnologia.net.br
-Use linux :)
+   marcos@mktecnologia.net.br
+   www.mktecnologia.net.br
+   Use linux :)
 
  ## Based in => \\S
  ## Kernel => \\r on an \\m
