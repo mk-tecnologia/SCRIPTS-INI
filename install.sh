@@ -2,7 +2,7 @@
 # install.sh — Instalador rápido do debian13-setup
 set -Eeuo pipefail
 
-INSTALLER_VERSION="1.1.1"
+INSTALLER_VERSION="1.2.0"
 DEFAULT_REPO="mk-tecnologia/SCRIPTS-INI"
 REPO="${SCRIPTS_INI_REPO:-$DEFAULT_REPO}"
 REF="${SCRIPTS_INI_REF:-}"
@@ -34,7 +34,8 @@ Opções do instalador:
   --install-only       Instala o comando sem executar os ajustes
   --uninstall          Remove o comando instalado
   --proxmox            Instala/executa o perfil para Proxmox VE
-  --target ALVO        Seleciona debian ou proxmox
+  --pbs                Instala/executa o perfil para Proxmox Backup Server
+  --target ALVO        Seleciona debian, proxmox ou pbs
   --ref REF            Baixa uma tag, branch ou commit
   -h, --help           Exibe esta ajuda
   --version            Exibe a versão do instalador
@@ -45,6 +46,7 @@ Exemplos:
   $0
   $0 --domain mk.intranet --interface ens18
   $0 --proxmox --domain mk.intranet
+  $0 --pbs --domain pires.intranet
   $0 --install-only
 EOF
 }
@@ -54,6 +56,7 @@ while (($#)); do
         --install-only) ACTION="install-only"; shift ;;
         --uninstall) ACTION="uninstall"; shift ;;
         --proxmox) TARGET="proxmox"; shift ;;
+        --pbs) TARGET="pbs"; shift ;;
         --target)
             (($# >= 2)) || die 'faltou o valor de --target'
             TARGET=$2
@@ -66,7 +69,7 @@ while (($#)); do
             ;;
         -h|--help) usage; exit 0 ;;
         --version)
-            printf 'debian13-setup-installer %s\n' "$INSTALLER_VERSION"
+            printf 'scripts-ini-installer %s\n' "$INSTALLER_VERSION"
             exit 0
             ;;
         --) shift; SETUP_ARGS+=("$@"); break ;;
@@ -83,7 +86,11 @@ case $TARGET in
         SETUP_SCRIPT="setup-proxmox.sh"
         INSTALL_PATH="/usr/local/sbin/proxmox-setup"
         ;;
-    *) die "alvo inválido: $TARGET (use debian ou proxmox)" ;;
+    pbs)
+        SETUP_SCRIPT="setup-pbs.sh"
+        INSTALL_PATH="/usr/local/sbin/pbs-setup"
+        ;;
+    *) die "alvo inválido: $TARGET (use debian, proxmox ou pbs)" ;;
 esac
 
 [[ $EUID -eq 0 ]] || die 'execute o instalador como root'

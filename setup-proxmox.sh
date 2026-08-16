@@ -2,7 +2,7 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.1.1"
+APP_VERSION="1.2.0"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""

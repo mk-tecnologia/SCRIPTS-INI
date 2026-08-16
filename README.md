@@ -1,6 +1,6 @@
 # SCRIPTS-INI
 
-Assistentes de pós-instalação para Debian 13 e Proxmox VE. Instalam os pacotes
+Assistentes de pós-instalação para Debian 13, Proxmox VE e Proxmox Backup Server. Instalam os pacotes
 básicos e configuram SSH, chave pública do root, fastfetch, MOTD, console,
 aliases e nome de domínio. O perfil Debian também ajusta o GRUB.
 
@@ -44,6 +44,19 @@ Para somente instalar o comando administrativo:
 bash /tmp/scripts-ini-install.sh --proxmox --install-only
 proxmox-setup
 ```
+
+### Proxmox Backup Server
+
+```bash
+apt-get update && apt-get install -y curl ca-certificates
+curl -fsSLo /tmp/scripts-ini-install.sh \
+  https://raw.githubusercontent.com/mk-tecnologia/SCRIPTS-INI/main/install.sh
+bash /tmp/scripts-ini-install.sh --pbs
+```
+
+O perfil PBS valida `proxmox-backup-manager`, usa `pires.intranet` como domínio
+padrão e prioriza interfaces `nic*` ou bridges `vmbr*`. O comando instalado é
+`pbs-setup`.
 
 Durante a execução:
 
