@@ -2,14 +2,14 @@
 # setup-pbs.sh — Pós-instalação automatizada do Proxmox Backup Server
 set -Eeuo pipefail
 
-APP_VERSION="1.3.2"
+APP_VERSION="1.3.3"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
 BACKUP_DIR="/root/pbs-setup-backup-$(date +%Y%m%d-%H%M%S)"
 PUBLIC_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKR5RW8eXT3nFrUjFBohZbMARFHB9VMASxomQIDR09SM marcos@mktecnologia.net.br'
 ISSUE_LOCK_PENDING="false"
-COMMUNITY_POST_INSTALL="false"
+COMMUNITY_POST_INSTALL=""
 COMMUNITY_REF="b19dad180918365c57aedac5d2f1ad48717426be"
 COMMUNITY_SHA256="cd4f9871021933f52e5d032c8e2dceda16ffa74c77037a47eb0bb0c026b0ce5e"
 
@@ -21,7 +21,9 @@ Opções:
   -d, --domain       Nome de domínio (padrão: mk.intranet)
   -i, --interface    Interface usada para mostrar o IPv4 no /etc/issue
   --community-post-install
-                     Executa opcionalmente o post-install do Community Scripts
+                     Força a execução do post-install do Community Scripts
+  --no-community-post-install
+                     Ignora o post-install sem perguntar
   -h, --help         Exibe esta ajuda
   -v, --version      Exibe a versão
 USAGE
@@ -46,7 +48,7 @@ restore_issue_lock() {
 trap restore_issue_lock EXIT
 
 run_community_post_install() {
-    local original sanitized answer
+    local original sanitized
     original=$(mktemp /tmp/community-post-pbs.XXXXXX)
     sanitized=$(mktemp /tmp/community-post-pbs-sanitized.XXXXXX)
 
@@ -77,18 +79,23 @@ run_community_post_install() {
     printf 'SHA-256: %s\n' "$COMMUNITY_SHA256"
     printf 'Checksum verificado e carregamento de telemetria removido.\n'
     printf 'IMPORTANTE: responda NÃO ao reboot oferecido pelo script externo.\n'
-    read -r -p 'Executar agora o post-install externo do PBS? [s/N] ' answer
-    if [[ ! ${answer:-n} =~ ^[SsYy]$ ]]; then
-        rm -f "$original" "$sanitized"
-        printf 'Post-install externo ignorado.\n'
-        return
-    fi
 
     if ! DIAGNOSTICS=no bash "$sanitized"; then
         rm -f "$original" "$sanitized"
         die 'o post-install externo do PBS terminou com erro'
     fi
     rm -f "$original" "$sanitized"
+}
+
+choose_community_post_install() {
+    local answer
+    [[ -n $COMMUNITY_POST_INSTALL ]] && return
+    read -r -p 'Deseja executar também o post-install do Proxmox Community Scripts? [s/N] ' answer
+    if [[ ${answer:-n} =~ ^[SsYy]$ ]]; then
+        COMMUNITY_POST_INSTALL="true"
+    else
+        COMMUNITY_POST_INSTALL="false"
+    fi
 }
 
 validate_domain() {
@@ -156,6 +163,7 @@ while (($#)); do
             shift 2
             ;;
         --community-post-install) COMMUNITY_POST_INSTALL="true"; shift ;;
+        --no-community-post-install) COMMUNITY_POST_INSTALL="false"; shift ;;
         -h|--help) usage; exit 0 ;;
         -v|--version) printf '%s %s\n' "$SCRIPT_NAME" "$APP_VERSION"; exit 0 ;;
         *) die "opção desconhecida: $1" ;;
@@ -168,6 +176,7 @@ command -v proxmox-backup-manager >/dev/null || die 'Proxmox Backup Server não 
 
 choose_domain
 choose_interface
+choose_community_post_install
 
 PBS_VERSION=$(proxmox-backup-manager versions 2>/dev/null | sed -n '1p' || true)
 printf '\nResumo:\n  Plataforma: %s\n  Domínio: %s\n  Interface: %s\n  Community post-install: %s\n' \

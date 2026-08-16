@@ -2,14 +2,14 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.3.2"
+APP_VERSION="1.3.3"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
 BACKUP_DIR="/root/proxmox-setup-backup-$(date +%Y%m%d-%H%M%S)"
 PUBLIC_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKR5RW8eXT3nFrUjFBohZbMARFHB9VMASxomQIDR09SM marcos@mktecnologia.net.br'
 ISSUE_LOCK_PENDING="false"
-COMMUNITY_POST_INSTALL="false"
+COMMUNITY_POST_INSTALL=""
 COMMUNITY_REF="b19dad180918365c57aedac5d2f1ad48717426be"
 COMMUNITY_SHA256="6af05f05b4079376bd17e0aae3c63cdd2654b3dfbd24b4061458a511391201b8"
 
@@ -21,7 +21,9 @@ Opções:
   -d, --domain       Nome de domínio (padrão: mk.intranet)
   -i, --interface    Bridge/interface usada para mostrar o IPv4 no /etc/issue
   --community-post-install
-                     Executa opcionalmente o post-install do Community Scripts
+                     Força a execução do post-install do Community Scripts
+  --no-community-post-install
+                     Ignora o post-install sem perguntar
   -h, --help         Exibe esta ajuda
   -v, --version      Exibe a versão
 USAGE
@@ -46,7 +48,7 @@ restore_issue_lock() {
 trap restore_issue_lock EXIT
 
 run_community_post_install() {
-    local original sanitized answer
+    local original sanitized
     original=$(mktemp /tmp/community-post-pve.XXXXXX)
     sanitized=$(mktemp /tmp/community-post-pve-sanitized.XXXXXX)
 
@@ -77,18 +79,23 @@ run_community_post_install() {
     printf 'SHA-256: %s\n' "$COMMUNITY_SHA256"
     printf 'Checksum verificado e carregamento de telemetria removido.\n'
     printf 'IMPORTANTE: responda NÃO ao reboot oferecido pelo script externo.\n'
-    read -r -p 'Executar agora o post-install externo do PVE? [s/N] ' answer
-    if [[ ! ${answer:-n} =~ ^[SsYy]$ ]]; then
-        rm -f "$original" "$sanitized"
-        printf 'Post-install externo ignorado.\n'
-        return
-    fi
 
     if ! DIAGNOSTICS=no bash "$sanitized"; then
         rm -f "$original" "$sanitized"
         die 'o post-install externo do PVE terminou com erro'
     fi
     rm -f "$original" "$sanitized"
+}
+
+choose_community_post_install() {
+    local answer
+    [[ -n $COMMUNITY_POST_INSTALL ]] && return
+    read -r -p 'Deseja executar também o post-install do Proxmox Community Scripts? [s/N] ' answer
+    if [[ ${answer:-n} =~ ^[SsYy]$ ]]; then
+        COMMUNITY_POST_INSTALL="true"
+    else
+        COMMUNITY_POST_INSTALL="false"
+    fi
 }
 
 validate_domain() {
@@ -156,6 +163,7 @@ while (($#)); do
             shift 2
             ;;
         --community-post-install) COMMUNITY_POST_INSTALL="true"; shift ;;
+        --no-community-post-install) COMMUNITY_POST_INSTALL="false"; shift ;;
         -h|--help) usage; exit 0 ;;
         -v|--version) printf '%s %s\n' "$SCRIPT_NAME" "$APP_VERSION"; exit 0 ;;
         *) die "opção desconhecida: $1" ;;
@@ -168,6 +176,7 @@ command -v pveversion >/dev/null || die 'Proxmox VE não detectado (pveversion a
 
 choose_domain
 choose_interface
+choose_community_post_install
 
 printf '\nResumo:\n  Plataforma: %s\n  Domínio: %s\n  Interface: %s\n  Community post-install: %s\n' \
     "$(pveversion | head -n1)" "$DOMAIN" "$NETWORK_INTERFACE" "$COMMUNITY_POST_INSTALL"

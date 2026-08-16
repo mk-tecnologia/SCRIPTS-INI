@@ -60,13 +60,17 @@ padrão e prioriza interfaces `nic*` ou bridges `vmbr*`. O comando instalado é
 
 ### Community post-install opcional
 
-Os perfis PVE e PBS podem executar, antes das personalizações locais, o
-post-install do projeto `community-scripts/ProxmoxVE`:
+Durante a instalação, os perfis PVE e PBS perguntam se devem executar, antes
+das personalizações locais, o post-install do projeto
+`community-scripts/ProxmoxVE`:
 
 ```bash
-bash /tmp/scripts-ini-install.sh --proxmox --community-post-install
-bash /tmp/scripts-ini-install.sh --pbs --community-post-install
+bash /tmp/scripts-ini-install.sh --proxmox
+bash /tmp/scripts-ini-install.sh --pbs
 ```
+
+As opções `--community-post-install` e `--no-community-post-install` existem
+somente para automações que precisam responder essa pergunta previamente.
 
 Essa integração não usa diretamente a referência mutável `main`. Ela baixa a
 revisão fixa `b19dad180918365c57aedac5d2f1ad48717426be`, confere o SHA-256 e a
