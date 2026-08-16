@@ -2,7 +2,7 @@
 # setup-pbs.sh — Pós-instalação automatizada do Proxmox Backup Server
 set -Eeuo pipefail
 
-APP_VERSION="1.3.3"
+APP_VERSION="1.3.4"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -67,18 +67,34 @@ run_community_post_install() {
         || die 'checksum inválido no post-install externo do PBS'
     bash -n "$original"
 
-    awk 'BEGIN { skip = 0 } /^# Telemetry$/ { skip = 2; next } skip > 0 { skip--; next } { print }' \
+    awk '
+        BEGIN { telemetry = 0; reboot_block = 0 }
+        /^# Telemetry$/ { telemetry = 2; next }
+        telemetry > 0 { telemetry--; next }
+        /^  # Reboot$/ {
+            reboot_block = 1
+            print "  msg_ok \"Reboot adiado para o final do SCRIPTS-INI\""
+            next
+        }
+        reboot_block && /^  esac$/ { reboot_block = 0; next }
+        reboot_block { next }
+        { print }
+    ' \
         "$original" > "$sanitized"
     if grep -Eq 'api\.func|init_tool_telemetry' "$sanitized"; then
         rm -f "$original" "$sanitized"
         die 'não foi possível remover com segurança o carregamento de telemetria'
+    fi
+    if grep -Eq '^[[:space:]]*reboot([[:space:]]|$)|--title "REBOOT"|Rebooting PBS' "$sanitized"; then
+        rm -f "$original" "$sanitized"
+        die 'não foi possível remover com segurança o reboot do script externo'
     fi
     bash -n "$sanitized"
 
     printf '\nScript externo: community-scripts/ProxmoxVE@%s\n' "$COMMUNITY_REF"
     printf 'SHA-256: %s\n' "$COMMUNITY_SHA256"
     printf 'Checksum verificado e carregamento de telemetria removido.\n'
-    printf 'IMPORTANTE: responda NÃO ao reboot oferecido pelo script externo.\n'
+    printf 'O reboot do script externo foi removido e será oferecido ao final.\n'
 
     if ! DIAGNOSTICS=no bash "$sanitized"; then
         rm -f "$original" "$sanitized"
@@ -338,3 +354,7 @@ else
 fi
 
 printf '\nConfiguração do PBS concluída. Backups: %s\n' "$BACKUP_DIR"
+read -r -p 'Deseja reiniciar o servidor agora? [s/N] ' REBOOT_ANSWER
+if [[ ${REBOOT_ANSWER:-n} =~ ^[SsYy]$ ]]; then
+    systemctl reboot
+fi
