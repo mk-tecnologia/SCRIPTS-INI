@@ -2,7 +2,7 @@
 # setup-pbs.sh — Pós-instalação automatizada do Proxmox Backup Server
 set -Eeuo pipefail
 
-APP_VERSION="1.4.2"
+APP_VERSION="1.4.3"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -223,11 +223,9 @@ apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y vim fastfetch qemu-guest-agent
 
 log 'Cadastrando a chave pública SSH para o usuário root'
-install -d -m 0700 -o root -g root /root/.ssh
+mkdir -p /root/.ssh
 backup_file /root/.ssh/authorized_keys
 touch /root/.ssh/authorized_keys
-chown root:root /root/.ssh/authorized_keys
-chmod 0600 /root/.ssh/authorized_keys
 if ! grep -qxF "$PUBLIC_KEY" /root/.ssh/authorized_keys; then
     printf '%s\n' "$PUBLIC_KEY" >> /root/.ssh/authorized_keys
 fi
