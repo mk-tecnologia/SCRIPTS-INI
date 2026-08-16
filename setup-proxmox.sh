@@ -2,7 +2,7 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.3.4"
+APP_VERSION="1.4.0"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -48,11 +48,10 @@ restore_issue_lock() {
 trap restore_issue_lock EXIT
 
 run_community_post_install() {
-    local original sanitized
+    local original
     original=$(mktemp /tmp/community-post-pve.XXXXXX)
-    sanitized=$(mktemp /tmp/community-post-pve-sanitized.XXXXXX)
 
-    log 'Preparando o post-install externo do Proxmox Community Scripts'
+    log 'Executando ao final o post-install externo do Proxmox Community Scripts'
     backup_file /etc/apt
     command -v curl >/dev/null || die 'curl é necessário para baixar o post-install externo'
     if ! command -v whiptail >/dev/null; then
@@ -67,40 +66,16 @@ run_community_post_install() {
         || die 'checksum inválido no post-install externo do PVE'
     bash -n "$original"
 
-    awk '
-        BEGIN { telemetry = 0; reboot_block = 0 }
-        /^# Telemetry$/ { telemetry = 2; next }
-        telemetry > 0 { telemetry--; next }
-        /^  CHOICE=\$\(whiptail .*--title "REBOOT"/ {
-            reboot_block = 1
-            print "  msg_ok \"Reboot adiado para o final do SCRIPTS-INI\""
-            next
-        }
-        reboot_block && /^  esac$/ { reboot_block = 0; next }
-        reboot_block { next }
-        { print }
-    ' \
-        "$original" > "$sanitized"
-    if grep -Eq 'api\.func|init_tool_telemetry' "$sanitized"; then
-        rm -f "$original" "$sanitized"
-        die 'não foi possível remover com segurança o carregamento de telemetria'
-    fi
-    if grep -Eq '^[[:space:]]*reboot([[:space:]]|$)|--title "REBOOT"|Rebooting Proxmox' "$sanitized"; then
-        rm -f "$original" "$sanitized"
-        die 'não foi possível remover com segurança o reboot do script externo'
-    fi
-    bash -n "$sanitized"
-
     printf '\nScript externo: community-scripts/ProxmoxVE@%s\n' "$COMMUNITY_REF"
     printf 'SHA-256: %s\n' "$COMMUNITY_SHA256"
-    printf 'Checksum verificado e carregamento de telemetria removido.\n'
-    printf 'O reboot do script externo foi removido e será oferecido ao final.\n'
+    printf 'Checksum e sintaxe verificados; código externo preservado sem alterações.\n'
+    printf 'ALERTA: a opção dist-upgrade pode conflitar com /etc/issue imutável.\n'
 
-    if ! DIAGNOSTICS=no bash "$sanitized"; then
-        rm -f "$original" "$sanitized"
+    if ! DIAGNOSTICS=no bash "$original"; then
+        rm -f "$original"
         die 'o post-install externo do PVE terminou com erro'
     fi
-    rm -f "$original" "$sanitized"
+    rm -f "$original"
 }
 
 choose_community_post_install() {
@@ -201,12 +176,12 @@ read -r -p 'Aplicar os ajustes? [S/n] ' CONFIRM
 
 mkdir -p "$BACKUP_DIR"
 
-if [[ $COMMUNITY_POST_INSTALL == true ]]; then
-    run_community_post_install
-fi
-
 log 'Instalando vim e fastfetch'
-apt-get update
+if [[ $COMMUNITY_POST_INSTALL == true ]]; then
+    apt-get update || printf 'Aviso: apt-get update parcial; o Community post-install tratará os repositórios ao final.\n' >&2
+else
+    apt-get update
+fi
 DEBIAN_FRONTEND=noninteractive apt-get install -y vim fastfetch
 
 log 'Cadastrando a chave pública SSH para o usuário root'
@@ -345,7 +320,11 @@ EOF
 sysctl --system >/dev/null
 
 printf '\nConfiguração do Proxmox concluída. Backups: %s\n' "$BACKUP_DIR"
-read -r -p 'Deseja reiniciar o servidor agora? [s/N] ' REBOOT_ANSWER
-if [[ ${REBOOT_ANSWER:-n} =~ ^[SsYy]$ ]]; then
-    systemctl reboot
+if [[ $COMMUNITY_POST_INSTALL == true ]]; then
+    run_community_post_install
+else
+    read -r -p 'Deseja reiniciar o servidor agora? [s/N] ' REBOOT_ANSWER
+    if [[ ${REBOOT_ANSWER:-n} =~ ^[SsYy]$ ]]; then
+        systemctl reboot
+    fi
 fi

@@ -60,7 +60,7 @@ padrão e prioriza interfaces `nic*` ou bridges `vmbr*`. O comando instalado é
 
 ### Community post-install opcional
 
-Durante a instalação, os perfis PVE e PBS perguntam se devem executar, antes
+Durante a instalação, os perfis PVE e PBS perguntam se devem executar, depois
 das personalizações locais, o post-install do projeto
 `community-scripts/ProxmoxVE`:
 
@@ -74,18 +74,22 @@ somente para automações que precisam responder essa pergunta previamente.
 
 Essa integração não usa diretamente a referência mutável `main`. Ela baixa a
 revisão fixa `b19dad180918365c57aedac5d2f1ad48717426be`, confere o SHA-256 e a
-sintaxe, remove do arquivo temporário o carregamento dinâmico de telemetria e
-exige uma confirmação específica. Antes da execução, `/etc/apt` é copiado para
-o diretório de backup da execução.
+sintaxe e executa o código externo sem modificá-lo. A execução usa
+`DIAGNOSTICS=no`, opção de saída da telemetria documentada pelo projeto. Antes
+da execução, `/etc/apt` é copiado para o diretório de backup. Como o código é
+preservado, ele ainda carrega o helper `api.func` da branch `main`, embora o
+envio de diagnósticos permaneça desativado.
 
-O post-install externo roda antes de `apt-get update`, permitindo que ele
-corrija um repositório Enterprise sem assinatura antes da instalação dos
-pacotes locais.
+Quando o Community post-install está selecionado, uma falha parcial de
+`apt-get update` causada pelo repositório Enterprise não interrompe o fluxo; os
+índices válidos são usados na instalação local e o script externo trata os
+repositórios ao final.
 
-O script externo pode alterar repositórios APT, atualizar pacotes e modificar a
-interface web. O bloco de reboot da cópia temporária é removido e validado antes
-da execução. Depois que o SCRIPTS-INI concluir todas as personalizações locais,
-ele fará uma única pergunta de reinicialização.
+> **Atenção ao `dist-upgrade`:** o script externo pode alterar repositórios APT,
+> atualizar pacotes, modificar a interface web e reiniciar o servidor. Nesse
+> ponto, `/etc/issue` já estará protegido com `chattr +i`; portanto, escolher
+> `dist-upgrade` pode falhar caso algum pacote tente sobrescrever esse arquivo.
+> O reboot final é controlado pelo próprio Community Script.
 
 Durante a execução:
 
