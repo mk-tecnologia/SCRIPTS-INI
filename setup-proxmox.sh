@@ -2,7 +2,7 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.1.0"
+APP_VERSION="1.1.1"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -15,7 +15,7 @@ usage() {
 Uso: $SCRIPT_NAME [--domain DOMINIO] [--interface INTERFACE]
 
 Opções:
-  -d, --domain       Nome de domínio (padrão: brsul.intranet)
+  -d, --domain       Nome de domínio (padrão: mk.intranet)
   -i, --interface    Bridge/interface usada para mostrar o IPv4 no /etc/issue
   -h, --help         Exibe esta ajuda
   -v, --version      Exibe a versão
@@ -50,10 +50,10 @@ validate_interface() {
 
 choose_domain() {
     while [[ -z $DOMAIN ]]; do
-        read -r -p 'Informe o nome de domínio [brsul.intranet]: ' DOMAIN
-        DOMAIN=${DOMAIN:-brsul.intranet}
+        read -r -p 'Informe o nome de domínio [mk.intranet]: ' DOMAIN
+        DOMAIN=${DOMAIN:-mk.intranet}
         if ! validate_domain "$DOMAIN"; then
-            printf 'Domínio inválido. Exemplo válido: brsul.intranet\n' >&2
+            printf 'Domínio inválido. Exemplo válido: mk.intranet\n' >&2
             DOMAIN=""
         fi
     done

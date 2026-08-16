@@ -34,7 +34,7 @@ curl -fsSLo /tmp/scripts-ini-install.sh \
 bash /tmp/scripts-ini-install.sh --proxmox
 ```
 
-O perfil valida a presença do Proxmox, usa `brsul.intranet` como domínio
+O perfil valida a presença do Proxmox, usa `mk.intranet` como domínio
 padrão e prioriza interfaces bridge `vmbr*`. Quando existe mais de uma bridge,
 apresenta um menu; com apenas uma, seleciona-a automaticamente.
 
