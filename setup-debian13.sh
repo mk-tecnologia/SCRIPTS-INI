@@ -2,7 +2,7 @@
 # setup-debian13.sh — Pós-instalação automatizada do Debian 13
 set -Eeuo pipefail
 
-APP_VERSION="1.3.0"
+APP_VERSION="1.3.1"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""

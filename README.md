@@ -54,7 +54,7 @@ curl -fsSLo /tmp/scripts-ini-install.sh \
 bash /tmp/scripts-ini-install.sh --pbs
 ```
 
-O perfil PBS valida `proxmox-backup-manager`, usa `pires.intranet` como domínio
+O perfil PBS valida `proxmox-backup-manager`, usa `mk.intranet` como domínio
 padrão e prioriza interfaces `nic*` ou bridges `vmbr*`. O comando instalado é
 `pbs-setup`.
 

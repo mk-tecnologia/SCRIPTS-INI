@@ -2,7 +2,7 @@
 # setup-pbs.sh — Pós-instalação automatizada do Proxmox Backup Server
 set -Eeuo pipefail
 
-APP_VERSION="1.3.0"
+APP_VERSION="1.3.1"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -18,7 +18,7 @@ usage() {
 Uso: $SCRIPT_NAME [--domain DOMINIO] [--interface INTERFACE]
 
 Opções:
-  -d, --domain       Nome de domínio (padrão: pires.intranet)
+  -d, --domain       Nome de domínio (padrão: mk.intranet)
   -i, --interface    Interface usada para mostrar o IPv4 no /etc/issue
   --community-post-install
                      Executa opcionalmente o post-install do Community Scripts
@@ -98,10 +98,10 @@ validate_interface() {
 
 choose_domain() {
     while [[ -z $DOMAIN ]]; do
-        read -r -p 'Informe o nome de domínio [pires.intranet]: ' DOMAIN
-        DOMAIN=${DOMAIN:-pires.intranet}
+        read -r -p 'Informe o nome de domínio [mk.intranet]: ' DOMAIN
+        DOMAIN=${DOMAIN:-mk.intranet}
         if ! validate_domain "$DOMAIN"; then
-            printf 'Domínio inválido. Exemplo válido: pires.intranet\n' >&2
+            printf 'Domínio inválido. Exemplo válido: mk.intranet\n' >&2
             DOMAIN=""
         fi
     done

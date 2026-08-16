@@ -2,7 +2,7 @@
 # install.sh — Instalador rápido do debian13-setup
 set -Eeuo pipefail
 
-INSTALLER_VERSION="1.3.0"
+INSTALLER_VERSION="1.3.1"
 DEFAULT_REPO="mk-tecnologia/SCRIPTS-INI"
 REPO="${SCRIPTS_INI_REPO:-$DEFAULT_REPO}"
 REF="${SCRIPTS_INI_REF:-}"
@@ -48,7 +48,7 @@ Exemplos:
   $0
   $0 --domain mk.intranet --interface ens18
   $0 --proxmox --domain mk.intranet
-  $0 --pbs --domain pires.intranet
+  $0 --pbs --domain mk.intranet
   $0 --proxmox --community-post-install
   $0 --install-only
 EOF
