@@ -28,7 +28,7 @@ eventualmente mantidas no cache da referência `main`.
 No host Proxmox, use o mesmo instalador com o perfil específico:
 
 ```bash
-apt-get update && apt-get install -y curl ca-certificates
+apt-get install -y curl ca-certificates
 curl -fsSLo /tmp/scripts-ini-install.sh \
   https://raw.githubusercontent.com/mk-tecnologia/SCRIPTS-INI/main/install.sh
 bash /tmp/scripts-ini-install.sh --proxmox
@@ -48,7 +48,7 @@ proxmox-setup
 ### Proxmox Backup Server
 
 ```bash
-apt-get update && apt-get install -y curl ca-certificates
+apt-get install -y curl ca-certificates
 curl -fsSLo /tmp/scripts-ini-install.sh \
   https://raw.githubusercontent.com/mk-tecnologia/SCRIPTS-INI/main/install.sh
 bash /tmp/scripts-ini-install.sh --pbs
@@ -80,10 +80,11 @@ da execução, `/etc/apt` é copiado para o diretório de backup. Como o código
 preservado, ele ainda carrega o helper `api.func` da branch `main`, embora o
 envio de diagnósticos permaneça desativado.
 
-Quando o Community post-install está selecionado, uma falha parcial de
-`apt-get update` causada pelo repositório Enterprise não interrompe o fluxo; os
-índices válidos são usados na instalação local e o script externo trata os
-repositórios ao final.
+Antes do primeiro `apt-get update`, os perfis PVE e PBS desativam o repositório
+Enterprise: entradas legadas são comentadas e arquivos `.sources` recebem
+`Enabled: false`. O conteúdo anterior de `/etc/apt` permanece no backup da
+execução. Essa política pressupõe que o servidor não utiliza uma assinatura
+Enterprise ativa.
 
 > **Atenção ao `dist-upgrade`:** o script externo pode alterar repositórios APT,
 > atualizar pacotes, modificar a interface web e reiniciar o servidor. Nesse

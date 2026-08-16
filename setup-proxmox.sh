@@ -2,7 +2,7 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.4.0"
+APP_VERSION="1.4.1"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -46,6 +46,26 @@ restore_issue_lock() {
     fi
 }
 trap restore_issue_lock EXIT
+
+disable_enterprise_repository() {
+    local file
+    log 'Desativando o repositório Enterprise do Proxmox VE'
+    backup_file /etc/apt
+
+    for file in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do
+        [[ -f $file ]] || continue
+        sed -i -E '/^[[:space:]]*#/! {/enterprise\.proxmox\.com|pve-enterprise/ s/^/# /;}' "$file"
+    done
+
+    file=/etc/apt/sources.list.d/pve-enterprise.sources
+    if [[ -f $file ]]; then
+        if grep -q '^Enabled:' "$file"; then
+            sed -i 's/^Enabled:.*/Enabled: false/' "$file"
+        else
+            printf 'Enabled: false\n' >> "$file"
+        fi
+    fi
+}
 
 run_community_post_install() {
     local original
@@ -175,13 +195,10 @@ read -r -p 'Aplicar os ajustes? [S/n] ' CONFIRM
 [[ ${CONFIRM:-s} =~ ^[SsYy]$ ]] || die 'operação cancelada'
 
 mkdir -p "$BACKUP_DIR"
+disable_enterprise_repository
 
 log 'Instalando vim e fastfetch'
-if [[ $COMMUNITY_POST_INSTALL == true ]]; then
-    apt-get update || printf 'Aviso: apt-get update parcial; o Community post-install tratará os repositórios ao final.\n' >&2
-else
-    apt-get update
-fi
+apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y vim fastfetch
 
 log 'Cadastrando a chave pública SSH para o usuário root'
