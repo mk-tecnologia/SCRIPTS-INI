@@ -2,7 +2,7 @@
 # setup-pbs.sh — Pós-instalação automatizada do Proxmox Backup Server
 set -Eeuo pipefail
 
-APP_VERSION="1.4.1"
+APP_VERSION="1.4.2"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -48,7 +48,7 @@ restore_issue_lock() {
 trap restore_issue_lock EXIT
 
 disable_enterprise_repository() {
-    local file
+    local file temp
     log 'Desativando o repositório Enterprise do Proxmox Backup Server'
     backup_file /etc/apt
 
@@ -57,14 +57,34 @@ disable_enterprise_repository() {
         sed -i -E '/^[[:space:]]*#/! {/enterprise\.proxmox\.com|pbs-enterprise/ s/^/# /;}' "$file"
     done
 
-    file=/etc/apt/sources.list.d/pbs-enterprise.sources
-    if [[ -f $file ]]; then
-        if grep -q '^Enabled:' "$file"; then
-            sed -i 's/^Enabled:.*/Enabled: false/' "$file"
-        else
-            printf 'Enabled: false\n' >> "$file"
-        fi
-    fi
+    for file in /etc/apt/sources.list.d/*.sources; do
+        [[ -f $file ]] || continue
+        grep -q 'enterprise\.proxmox\.com' "$file" || continue
+        temp=$(mktemp /tmp/apt-sources.XXXXXX)
+        awk '
+            BEGIN { RS = ""; ORS = "\n\n" }
+            {
+                if ($0 ~ /URIs:[^\n]*enterprise\.proxmox\.com/) {
+                    count = split($0, line, "\n")
+                    found = 0
+                    output = ""
+                    for (i = 1; i <= count; i++) {
+                        if (line[i] ~ /^Enabled:/) {
+                            line[i] = "Enabled: false"
+                            found = 1
+                        }
+                        output = output (i > 1 ? "\n" : "") line[i]
+                    }
+                    if (!found) output = output "\nEnabled: false"
+                    print output
+                } else {
+                    print
+                }
+            }
+        ' "$file" > "$temp"
+        cat "$temp" > "$file"
+        rm -f "$temp"
+    done
 }
 
 run_community_post_install() {

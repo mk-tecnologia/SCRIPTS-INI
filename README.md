@@ -82,9 +82,11 @@ envio de diagnósticos permaneça desativado.
 
 Antes do primeiro `apt-get update`, os perfis PVE e PBS desativam o repositório
 Enterprise: entradas legadas são comentadas e arquivos `.sources` recebem
-`Enabled: false`. O conteúdo anterior de `/etc/apt` permanece no backup da
-execução. Essa política pressupõe que o servidor não utiliza uma assinatura
-Enterprise ativa.
+`Enabled: false` somente nos blocos que apontam para
+`enterprise.proxmox.com`, incluindo os repositórios Enterprise do Ceph. Blocos
+No-Subscription presentes no mesmo arquivo são preservados. O conteúdo anterior
+de `/etc/apt` permanece no backup da execução. Essa política pressupõe que o
+servidor não utiliza uma assinatura Enterprise ativa.
 
 > **Atenção ao `dist-upgrade`:** o script externo pode alterar repositórios APT,
 > atualizar pacotes, modificar a interface web e reiniciar o servidor. Nesse
