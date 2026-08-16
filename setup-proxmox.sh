@@ -2,13 +2,16 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.2.0"
+APP_VERSION="1.3.0"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
 BACKUP_DIR="/root/proxmox-setup-backup-$(date +%Y%m%d-%H%M%S)"
 PUBLIC_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKR5RW8eXT3nFrUjFBohZbMARFHB9VMASxomQIDR09SM marcos@mktecnologia.net.br'
 ISSUE_LOCK_PENDING="false"
+COMMUNITY_POST_INSTALL="false"
+COMMUNITY_REF="b19dad180918365c57aedac5d2f1ad48717426be"
+COMMUNITY_SHA256="6af05f05b4079376bd17e0aae3c63cdd2654b3dfbd24b4061458a511391201b8"
 
 usage() {
     cat <<USAGE
@@ -17,6 +20,8 @@ Uso: $SCRIPT_NAME [--domain DOMINIO] [--interface INTERFACE]
 Opções:
   -d, --domain       Nome de domínio (padrão: mk.intranet)
   -i, --interface    Bridge/interface usada para mostrar o IPv4 no /etc/issue
+  --community-post-install
+                     Executa opcionalmente o post-install do Community Scripts
   -h, --help         Exibe esta ajuda
   -v, --version      Exibe a versão
 USAGE
@@ -39,6 +44,49 @@ restore_issue_lock() {
     fi
 }
 trap restore_issue_lock EXIT
+
+run_community_post_install() {
+    local original sanitized answer
+    original=$(mktemp /tmp/community-post-pve.XXXXXX)
+    sanitized=$(mktemp /tmp/community-post-pve-sanitized.XXXXXX)
+
+    log 'Preparando o post-install externo do Proxmox Community Scripts'
+    backup_file /etc/apt
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates whiptail
+
+    curl -fsSL --connect-timeout 10 --max-time 60 --retry 2 \
+        "https://raw.githubusercontent.com/community-scripts/ProxmoxVE/${COMMUNITY_REF}/tools/pve/post-pve-install.sh" \
+        -o "$original"
+    printf '%s  %s\n' "$COMMUNITY_SHA256" "$original" | sha256sum -c - >/dev/null \
+        || die 'checksum inválido no post-install externo do PVE'
+    bash -n "$original"
+
+    awk 'BEGIN { skip = 0 } /^# Telemetry$/ { skip = 2; next } skip > 0 { skip--; next } { print }' \
+        "$original" > "$sanitized"
+    if grep -Eq 'api\.func|init_tool_telemetry' "$sanitized"; then
+        rm -f "$original" "$sanitized"
+        die 'não foi possível remover com segurança o carregamento de telemetria'
+    fi
+    bash -n "$sanitized"
+
+    printf '\nScript externo: community-scripts/ProxmoxVE@%s\n' "$COMMUNITY_REF"
+    printf 'SHA-256: %s\n' "$COMMUNITY_SHA256"
+    printf 'Checksum verificado e carregamento de telemetria removido.\n'
+    printf 'IMPORTANTE: responda NÃO ao reboot oferecido pelo script externo.\n'
+    read -r -p 'Executar agora o post-install externo do PVE? [s/N] ' answer
+    if [[ ! ${answer:-n} =~ ^[SsYy]$ ]]; then
+        rm -f "$original" "$sanitized"
+        printf 'Post-install externo ignorado.\n'
+        return
+    fi
+
+    if ! DIAGNOSTICS=no bash "$sanitized"; then
+        rm -f "$original" "$sanitized"
+        die 'o post-install externo do PVE terminou com erro'
+    fi
+    rm -f "$original" "$sanitized"
+}
 
 validate_domain() {
     [[ $1 =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ && $1 == *.* ]]
@@ -104,6 +152,7 @@ while (($#)); do
             NETWORK_INTERFACE=$2
             shift 2
             ;;
+        --community-post-install) COMMUNITY_POST_INSTALL="true"; shift ;;
         -h|--help) usage; exit 0 ;;
         -v|--version) printf '%s %s\n' "$SCRIPT_NAME" "$APP_VERSION"; exit 0 ;;
         *) die "opção desconhecida: $1" ;;
@@ -117,11 +166,16 @@ command -v pveversion >/dev/null || die 'Proxmox VE não detectado (pveversion a
 choose_domain
 choose_interface
 
-printf '\nResumo:\n  Plataforma: %s\n  Domínio: %s\n  Interface: %s\n' "$(pveversion | head -n1)" "$DOMAIN" "$NETWORK_INTERFACE"
+printf '\nResumo:\n  Plataforma: %s\n  Domínio: %s\n  Interface: %s\n  Community post-install: %s\n' \
+    "$(pveversion | head -n1)" "$DOMAIN" "$NETWORK_INTERFACE" "$COMMUNITY_POST_INSTALL"
 read -r -p 'Aplicar os ajustes? [S/n] ' CONFIRM
 [[ ${CONFIRM:-s} =~ ^[SsYy]$ ]] || die 'operação cancelada'
 
 mkdir -p "$BACKUP_DIR"
+
+if [[ $COMMUNITY_POST_INSTALL == true ]]; then
+    run_community_post_install
+fi
 
 log 'Instalando vim e fastfetch'
 apt-get update

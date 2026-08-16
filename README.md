@@ -58,6 +58,26 @@ O perfil PBS valida `proxmox-backup-manager`, usa `pires.intranet` como domínio
 padrão e prioriza interfaces `nic*` ou bridges `vmbr*`. O comando instalado é
 `pbs-setup`.
 
+### Community post-install opcional
+
+Os perfis PVE e PBS podem executar, antes das personalizações locais, o
+post-install do projeto `community-scripts/ProxmoxVE`:
+
+```bash
+bash /tmp/scripts-ini-install.sh --proxmox --community-post-install
+bash /tmp/scripts-ini-install.sh --pbs --community-post-install
+```
+
+Essa integração não usa diretamente a referência mutável `main`. Ela baixa a
+revisão fixa `b19dad180918365c57aedac5d2f1ad48717426be`, confere o SHA-256 e a
+sintaxe, remove do arquivo temporário o carregamento dinâmico de telemetria e
+exige uma confirmação específica. Antes da execução, `/etc/apt` é copiado para
+o diretório de backup da execução.
+
+O script externo pode alterar repositórios APT, atualizar pacotes, modificar a
+interface web e oferecer uma reinicialização. Responda **não** ao reboot dentro
+dele; depois que retornar, o SCRIPTS-INI concluirá as personalizações locais.
+
 Durante a execução:
 
 - o nome de domínio é solicitado e validado;

@@ -2,7 +2,7 @@
 # install.sh — Instalador rápido do debian13-setup
 set -Eeuo pipefail
 
-INSTALLER_VERSION="1.2.0"
+INSTALLER_VERSION="1.3.0"
 DEFAULT_REPO="mk-tecnologia/SCRIPTS-INI"
 REPO="${SCRIPTS_INI_REPO:-$DEFAULT_REPO}"
 REF="${SCRIPTS_INI_REF:-}"
@@ -36,6 +36,8 @@ Opções do instalador:
   --proxmox            Instala/executa o perfil para Proxmox VE
   --pbs                Instala/executa o perfil para Proxmox Backup Server
   --target ALVO        Seleciona debian, proxmox ou pbs
+  --community-post-install
+                       Encaminha a integração opcional aos perfis PVE/PBS
   --ref REF            Baixa uma tag, branch ou commit
   -h, --help           Exibe esta ajuda
   --version            Exibe a versão do instalador
@@ -47,6 +49,7 @@ Exemplos:
   $0 --domain mk.intranet --interface ens18
   $0 --proxmox --domain mk.intranet
   $0 --pbs --domain pires.intranet
+  $0 --proxmox --community-post-install
   $0 --install-only
 EOF
 }
