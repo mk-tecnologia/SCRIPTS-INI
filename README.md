@@ -20,6 +20,8 @@ trazer o `curl` instalado por padrão.
 
 O instalador baixa e valida o assistente, cria o comando
 `/usr/local/sbin/debian13-setup` e inicia a configuração interativa.
+Por padrão, ele usa a release estável mais recente, evitando versões antigas
+eventualmente mantidas no cache da referência `main`.
 
 Durante a execução:
 

@@ -2,11 +2,12 @@
 # install.sh — Instalador rápido do debian13-setup
 set -Eeuo pipefail
 
-INSTALLER_VERSION="1.0.4"
+INSTALLER_VERSION="1.0.5"
 DEFAULT_REPO="mk-tecnologia/SCRIPTS-INI"
 REPO="${SCRIPTS_INI_REPO:-$DEFAULT_REPO}"
-REF="${SCRIPTS_INI_REF:-main}"
+REF="${SCRIPTS_INI_REF:-}"
 RAW_BASE="${SCRIPTS_INI_RAW_BASE:-https://raw.githubusercontent.com}"
+API_BASE="${SCRIPTS_INI_API_BASE:-https://api.github.com}"
 INSTALL_PATH="/usr/local/sbin/debian13-setup"
 ACTION="install-run"
 declare -a SETUP_ARGS=()
@@ -30,7 +31,7 @@ Uso: $0 [opções do instalador] [-- opções do assistente]
 Opções do instalador:
   --install-only       Instala o comando sem executar os ajustes
   --uninstall          Remove o comando instalado
-  --ref REF            Baixa uma tag, branch ou commit (padrão: main)
+  --ref REF            Baixa uma tag, branch ou commit
   -h, --help           Exibe esta ajuda
   --version            Exibe a versão do instalador
 
@@ -76,6 +77,16 @@ fi
 
 command -v curl >/dev/null || die 'curl não está instalado'
 [[ $REPO =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || die "repositório inválido: $REPO"
+
+if [[ -z $REF ]]; then
+    info 'Consultando a versão estável mais recente'
+    REF=$(curl -fsSL --connect-timeout 10 --max-time 30 --retry 2 \
+        -H 'Accept: application/vnd.github+json' \
+        "${API_BASE}/repos/${REPO}/releases/latest" \
+        | sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p')
+    [[ -n $REF ]] || die 'não foi possível identificar a release mais recente'
+fi
+
 [[ $REF =~ ^[A-Za-z0-9._/-]+$ ]] || die "referência inválida: $REF"
 
 STAGING_FILE=$(mktemp /tmp/debian13-setup.XXXXXX)
