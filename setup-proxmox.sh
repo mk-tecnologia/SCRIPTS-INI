@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# setup-debian13.sh — Pós-instalação automatizada do Debian 13
+# setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
 APP_VERSION="1.1.0"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
-BACKUP_DIR="/root/debian13-setup-backup-$(date +%Y%m%d-%H%M%S)"
+BACKUP_DIR="/root/proxmox-setup-backup-$(date +%Y%m%d-%H%M%S)"
 PUBLIC_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKR5RW8eXT3nFrUjFBohZbMARFHB9VMASxomQIDR09SM marcos@mktecnologia.net.br'
 ISSUE_LOCK_PENDING="false"
 
@@ -15,25 +15,19 @@ usage() {
 Uso: $SCRIPT_NAME [--domain DOMINIO] [--interface INTERFACE]
 
 Opções:
-  -d, --domain       Nome de domínio (ex.: mk.intranet)
-  -i, --interface    Interface usada para mostrar o IPv4 em /etc/issue
+  -d, --domain       Nome de domínio (padrão: brsul.intranet)
+  -i, --interface    Bridge/interface usada para mostrar o IPv4 no /etc/issue
   -h, --help         Exibe esta ajuda
   -v, --version      Exibe a versão
 USAGE
 }
 
-log() {
-    printf '\n==> %s\n' "$*"
-}
-
-die() {
-    printf 'Erro: %s\n' "$*" >&2
-    exit 1
-}
+log() { printf '\n==> %s\n' "$*"; }
+die() { printf 'Erro: %s\n' "$*" >&2; exit 1; }
 
 backup_file() {
     local file=$1
-    if [[ -e "$file" || -L "$file" ]]; then
+    if [[ -e $file || -L $file ]]; then
         mkdir -p "$BACKUP_DIR$(dirname "$file")"
         cp -a "$file" "$BACKUP_DIR$file"
     fi
@@ -44,7 +38,6 @@ restore_issue_lock() {
         chattr +i /etc/issue 2>/dev/null || true
     fi
 }
-
 trap restore_issue_lock EXIT
 
 validate_domain() {
@@ -57,10 +50,10 @@ validate_interface() {
 
 choose_domain() {
     while [[ -z $DOMAIN ]]; do
-        read -r -p 'Informe o nome de domínio [mk.intranet]: ' DOMAIN
-        DOMAIN=${DOMAIN:-mk.intranet}
+        read -r -p 'Informe o nome de domínio [brsul.intranet]: ' DOMAIN
+        DOMAIN=${DOMAIN:-brsul.intranet}
         if ! validate_domain "$DOMAIN"; then
-            printf 'Domínio inválido. Exemplo válido: mk.intranet\n' >&2
+            printf 'Domínio inválido. Exemplo válido: brsul.intranet\n' >&2
             DOMAIN=""
         fi
     done
@@ -71,13 +64,16 @@ choose_interface() {
     local -a interfaces=()
     local choice
 
-    mapfile -t interfaces < <(ip -o link show | awk -F': ' '$2 != "lo" {sub(/@.*/, "", $2); print $2}')
-    ((${#interfaces[@]} > 0)) || die 'nenhuma interface de rede foi detectada'
-
     if [[ -n $NETWORK_INTERFACE ]]; then
         validate_interface "$NETWORK_INTERFACE" || die "interface inexistente: $NETWORK_INTERFACE"
         return
     fi
+
+    mapfile -t interfaces < <(ip -o link show | awk -F': ' '$2 ~ /^vmbr[0-9]+(@.*)?$/ {sub(/@.*/, "", $2); print $2}')
+    if ((${#interfaces[@]} == 0)); then
+        mapfile -t interfaces < <(ip -o link show | awk -F': ' '$2 != "lo" {sub(/@.*/, "", $2); print $2}')
+    fi
+    ((${#interfaces[@]} > 0)) || die 'nenhuma interface de rede foi detectada'
 
     if ((${#interfaces[@]} == 1)); then
         NETWORK_INTERFACE=${interfaces[0]}
@@ -85,7 +81,7 @@ choose_interface() {
         return
     fi
 
-    printf 'Interfaces de rede detectadas:\n'
+    printf 'Bridges/interfaces detectadas:\n'
     PS3='Selecione a interface usada no /etc/issue: '
     select choice in "${interfaces[@]}"; do
         if [[ -n $choice ]]; then
@@ -108,35 +104,28 @@ while (($#)); do
             NETWORK_INTERFACE=$2
             shift 2
             ;;
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        -v|--version)
-            printf '%s %s\n' "$SCRIPT_NAME" "$APP_VERSION"
-            exit 0
-            ;;
-        *)
-            die "opção desconhecida: $1"
-            ;;
+        -h|--help) usage; exit 0 ;;
+        -v|--version) printf '%s %s\n' "$SCRIPT_NAME" "$APP_VERSION"; exit 0 ;;
+        *) die "opção desconhecida: $1" ;;
     esac
 done
 
 [[ $EUID -eq 0 ]] || die 'execute este script como root'
-command -v apt-get >/dev/null || die 'apt-get não encontrado; este script requer Debian/Ubuntu'
+command -v apt-get >/dev/null || die 'apt-get não encontrado'
+command -v pveversion >/dev/null || die 'Proxmox VE não detectado (pveversion ausente)'
 
 choose_domain
 choose_interface
 
-printf '\nResumo:\n  Domínio: %s\n  Interface: %s\n' "$DOMAIN" "$NETWORK_INTERFACE"
+printf '\nResumo:\n  Plataforma: %s\n  Domínio: %s\n  Interface: %s\n' "$(pveversion | head -n1)" "$DOMAIN" "$NETWORK_INTERFACE"
 read -r -p 'Aplicar os ajustes? [S/n] ' CONFIRM
 [[ ${CONFIRM:-s} =~ ^[SsYy]$ ]] || die 'operação cancelada'
 
 mkdir -p "$BACKUP_DIR"
 
-log 'Instalando vim, qemu-guest-agent e fastfetch'
+log 'Instalando vim e fastfetch'
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y vim qemu-guest-agent fastfetch
+DEBIAN_FRONTEND=noninteractive apt-get install -y vim fastfetch
 
 log 'Cadastrando a chave pública SSH para o usuário root'
 install -d -m 0700 -o root -g root /root/.ssh
@@ -165,32 +154,22 @@ awk '
     {
         normalized = tolower($0)
         sub(/^[[:space:]]+/, "", normalized)
-
         if (global && normalized ~ /^match[[:space:]]/) {
-            if (!configured) {
-                print_root_login_config()
-                print ""
-                configured = 1
-            }
+            if (!configured) { print_root_login_config(); print ""; configured = 1 }
             global = 0
         }
-
         candidate = normalized
         sub(/^#[[:space:]]*/, "", candidate)
         if (global && candidate ~ /^permitrootlogin[[:space:]]+/) {
-            if (!configured) {
-                print_root_login_config()
-                configured = 1
-            }
+            if (!configured) { print_root_login_config(); configured = 1 }
             next
         }
-
         print
     }
     END {
         if (global && !configured) {
             print ""
-            print "# Gerenciado por setup-debian13.sh"
+            print "# Gerenciado por setup-proxmox.sh"
             print_root_login_config()
         }
     }
@@ -244,6 +223,7 @@ cat > /etc/issue <<EOF
 
    ## Based in => \\S
    ## Kernel => \\r on an \\m
+
    ## Hostname => \\n.\\o
    ## IPV4 $NETWORK_INTERFACE => \\4{$NETWORK_INTERFACE}
 
@@ -277,30 +257,9 @@ EOF
 log 'Configurando o nome de domínio do kernel'
 backup_file /etc/sysctl.d/99-custom.conf
 cat > /etc/sysctl.d/99-custom.conf <<EOF
-# Gerenciado por setup-debian13.sh
+# Gerenciado por setup-proxmox.sh
 kernel.domainname = $DOMAIN
 EOF
 sysctl --system >/dev/null
 
-log 'Desativando os sockets SSH automáticos AF_VSOCK no GRUB'
-command -v update-grub >/dev/null || die 'update-grub não encontrado'
-backup_file /etc/default/grub
-if grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT="[^"]*"$' /etc/default/grub; then
-    GRUB_DEFAULT_ARGS=$(sed -n -E 's/^GRUB_CMDLINE_LINUX_DEFAULT="([^"]*)"$/\1/p' /etc/default/grub)
-    if [[ " $GRUB_DEFAULT_ARGS " != *' systemd.ssh_auto=no '* ]]; then
-        if [[ -n $GRUB_DEFAULT_ARGS ]]; then
-            sed -i -E 's/^(GRUB_CMDLINE_LINUX_DEFAULT="[^"]*)"$/\1 systemd.ssh_auto=no"/' /etc/default/grub
-        else
-            sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=""$/GRUB_CMDLINE_LINUX_DEFAULT="systemd.ssh_auto=no"/' /etc/default/grub
-        fi
-    fi
-else
-    die 'formato de GRUB_CMDLINE_LINUX_DEFAULT não reconhecido em /etc/default/grub'
-fi
-update-grub
-
-log 'Ativando o qemu-guest-agent'
-systemctl enable --now qemu-guest-agent
-
-printf '\nConfiguração concluída. Backups: %s\n' "$BACKUP_DIR"
-printf 'Reinicie o sistema para aplicar systemd.ssh_auto=no.\n'
+printf '\nConfiguração do Proxmox concluída. Backups: %s\n' "$BACKUP_DIR"

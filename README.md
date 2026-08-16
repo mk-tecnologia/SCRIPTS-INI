@@ -1,8 +1,8 @@
 # SCRIPTS-INI
 
-Assistente de pós-instalação para Debian 13. Instala os pacotes básicos e
-configura SSH, chave pública do root, fastfetch, MOTD, console, aliases, GRUB e
-nome de domínio.
+Assistentes de pós-instalação para Debian 13 e Proxmox VE. Instalam os pacotes
+básicos e configuram SSH, chave pública do root, fastfetch, MOTD, console,
+aliases e nome de domínio. O perfil Debian também ajusta o GRUB.
 
 ## Instalação rápida
 
@@ -22,6 +22,28 @@ O instalador baixa e valida o assistente, cria o comando
 `/usr/local/sbin/debian13-setup` e inicia a configuração interativa.
 Por padrão, ele usa a release estável mais recente, evitando versões antigas
 eventualmente mantidas no cache da referência `main`.
+
+### Proxmox VE
+
+No host Proxmox, use o mesmo instalador com o perfil específico:
+
+```bash
+apt-get update && apt-get install -y curl ca-certificates
+curl -fsSLo /tmp/scripts-ini-install.sh \
+  https://raw.githubusercontent.com/mk-tecnologia/SCRIPTS-INI/main/install.sh
+bash /tmp/scripts-ini-install.sh --proxmox
+```
+
+O perfil valida a presença do Proxmox, usa `brsul.intranet` como domínio
+padrão e prioriza interfaces bridge `vmbr*`. Quando existe mais de uma bridge,
+apresenta um menu; com apenas uma, seleciona-a automaticamente.
+
+Para somente instalar o comando administrativo:
+
+```bash
+bash /tmp/scripts-ini-install.sh --proxmox --install-only
+proxmox-setup
+```
 
 Durante a execução:
 
