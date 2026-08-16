@@ -2,12 +2,13 @@
 # setup-debian13.sh — Pós-instalação automatizada do Debian 13
 set -Eeuo pipefail
 
-APP_VERSION="1.0.1"
+APP_VERSION="1.0.2"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
 BACKUP_DIR="/root/debian13-setup-backup-$(date +%Y%m%d-%H%M%S)"
 PUBLIC_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKR5RW8eXT3nFrUjFBohZbMARFHB9VMASxomQIDR09SM marcos@mktecnologia.net.br'
+ISSUE_LOCK_PENDING="false"
 
 usage() {
     cat <<USAGE
@@ -37,6 +38,14 @@ backup_file() {
         cp -a "$file" "$BACKUP_DIR$file"
     fi
 }
+
+restore_issue_lock() {
+    if [[ $ISSUE_LOCK_PENDING == true ]] && command -v chattr >/dev/null; then
+        chattr +i /etc/issue 2>/dev/null || true
+    fi
+}
+
+trap restore_issue_lock EXIT
 
 validate_domain() {
     [[ $1 =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ && $1 == *.* ]]
@@ -171,9 +180,9 @@ ExecStart=
 ExecStart=-/sbin/agetty -o '-p -- \u' %I $TERM
 EOF
 
-if command -v chattr >/dev/null; then
-    chattr -i /etc/issue 2>/dev/null || true
-fi
+command -v chattr >/dev/null || die 'chattr não encontrado; instale o pacote e2fsprogs'
+ISSUE_LOCK_PENDING="true"
+chattr -i /etc/issue 2>/dev/null || true
 backup_file /etc/issue
 cat > /etc/issue <<EOF
 
@@ -196,9 +205,8 @@ Use linux :)
 # MK Tecnologia #
 #################
 EOF
-if command -v chattr >/dev/null; then
-    chattr +i /etc/issue
-fi
+chattr +i /etc/issue
+ISSUE_LOCK_PENDING="false"
 
 systemctl daemon-reload
 systemctl restart getty@tty1.service
@@ -227,7 +235,25 @@ kernel.domainname = $DOMAIN
 EOF
 sysctl --system >/dev/null
 
+log 'Desativando os sockets SSH automáticos AF_VSOCK no GRUB'
+command -v update-grub >/dev/null || die 'update-grub não encontrado'
+backup_file /etc/default/grub
+if grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT="[^"]*"$' /etc/default/grub; then
+    GRUB_DEFAULT_ARGS=$(sed -n -E 's/^GRUB_CMDLINE_LINUX_DEFAULT="([^"]*)"$/\1/p' /etc/default/grub)
+    if [[ " $GRUB_DEFAULT_ARGS " != *' systemd.ssh_auto=no '* ]]; then
+        if [[ -n $GRUB_DEFAULT_ARGS ]]; then
+            sed -i -E 's/^(GRUB_CMDLINE_LINUX_DEFAULT="[^"]*)"$/\1 systemd.ssh_auto=no"/' /etc/default/grub
+        else
+            sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=""$/GRUB_CMDLINE_LINUX_DEFAULT="systemd.ssh_auto=no"/' /etc/default/grub
+        fi
+    fi
+else
+    die 'formato de GRUB_CMDLINE_LINUX_DEFAULT não reconhecido em /etc/default/grub'
+fi
+update-grub
+
 log 'Ativando o qemu-guest-agent'
 systemctl enable --now qemu-guest-agent
 
 printf '\nConfiguração concluída. Backups: %s\n' "$BACKUP_DIR"
+printf 'Reinicie o sistema para aplicar systemd.ssh_auto=no.\n'

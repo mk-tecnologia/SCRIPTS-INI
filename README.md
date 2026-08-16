@@ -1,8 +1,8 @@
 # SCRIPTS-INI
 
 Assistente de pós-instalação para Debian 13. Instala os pacotes básicos e
-configura SSH, chave pública do root, fastfetch, MOTD, console, aliases e nome
-de domínio.
+configura SSH, chave pública do root, fastfetch, MOTD, console, aliases, GRUB e
+nome de domínio.
 
 ## Instalação rápida
 
@@ -28,6 +28,8 @@ Durante a execução:
 - quando há várias interfaces, um menu permite escolher qual IPv4 mostrar;
 - um resumo é exibido antes de qualquer alteração;
 - arquivos alterados são copiados para um diretório de backup em `/root`.
+- `systemd.ssh_auto=no` é acrescentado ao GRUB para desativar os sockets SSH
+  automáticos `AF_VSOCK`; uma reinicialização é necessária para aplicá-lo.
 
 ## Execução direta
 
@@ -79,3 +81,7 @@ O login SSH do root fica permitido somente por chave pública:
 ```text
 PermitRootLogin prohibit-password
 ```
+
+O `/etc/issue` recebe o atributo imutável após a configuração para impedir que
+seja sobrescrito na inicialização. Em uma nova execução, o assistente remove o
+atributo temporariamente e garante sua reaplicação mesmo se ocorrer um erro.
