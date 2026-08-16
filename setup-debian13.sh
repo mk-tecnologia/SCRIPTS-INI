@@ -2,7 +2,7 @@
 # setup-debian13.sh — Pós-instalação automatizada do Debian 13
 set -Eeuo pipefail
 
-APP_VERSION="1.0.6"
+APP_VERSION="1.0.7"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -157,6 +157,10 @@ fi
 
 SSHD_CONFIG_TEMP=$(mktemp /tmp/sshd_config.XXXXXX)
 awk '
+    function print_root_login_config() {
+        print "# PermitRootLogin yes"
+        print "PermitRootLogin prohibit-password"
+    }
     BEGIN { global = 1; configured = 0 }
     {
         normalized = tolower($0)
@@ -164,7 +168,7 @@ awk '
 
         if (global && normalized ~ /^match[[:space:]]/) {
             if (!configured) {
-                print "PermitRootLogin prohibit-password"
+                print_root_login_config()
                 print ""
                 configured = 1
             }
@@ -175,7 +179,7 @@ awk '
         sub(/^#[[:space:]]*/, "", candidate)
         if (global && candidate ~ /^permitrootlogin[[:space:]]+/) {
             if (!configured) {
-                print "PermitRootLogin prohibit-password"
+                print_root_login_config()
                 configured = 1
             }
             next
@@ -187,7 +191,7 @@ awk '
         if (global && !configured) {
             print ""
             print "# Gerenciado por setup-debian13.sh"
-            print "PermitRootLogin prohibit-password"
+            print_root_login_config()
         }
     }
 ' /etc/ssh/sshd_config > "$SSHD_CONFIG_TEMP"
