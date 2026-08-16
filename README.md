@@ -9,10 +9,14 @@ de domínio.
 No servidor Debian 13, como `root`:
 
 ```bash
+apt-get update && apt-get install -y curl ca-certificates
 curl -fsSLo /tmp/debian13-install.sh \
   https://raw.githubusercontent.com/mk-tecnologia/SCRIPTS-INI/main/install.sh
 bash /tmp/debian13-install.sh
 ```
+
+O primeiro comando também atende instalações mínimas do Debian, que podem não
+trazer o `curl` instalado por padrão.
 
 O instalador baixa e valida o assistente, cria o comando
 `/usr/local/sbin/debian13-setup` e inicia a configuração interativa.
