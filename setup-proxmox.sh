@@ -2,7 +2,7 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.4.3"
+APP_VERSION="1.4.4"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -64,22 +64,37 @@ disable_enterprise_repository() {
         awk '
             BEGIN { RS = ""; ORS = "\n\n" }
             {
-                if ($0 ~ /URIs:[^\n]*enterprise\.proxmox\.com/) {
-                    count = split($0, line, "\n")
-                    found = 0
-                    output = ""
-                    for (i = 1; i <= count; i++) {
-                        if (line[i] ~ /^Enabled:/) {
-                            line[i] = "Enabled: false"
+                count = split($0, line, "\n")
+                enterprise = 0
+                uri_field = 0
+                other_fields = 0
+                for (i = 1; i <= count; i++) {
+                    if (line[i] ~ /^[[:space:]]*#/) continue
+                    lower = tolower(line[i])
+                    if (lower ~ /^[^[:space:]]/) uri_field = (lower ~ /^uris:/)
+                    if (uri_field && lower ~ /enterprise\.proxmox\.com/) enterprise = 1
+                    if (lower !~ /^enabled:/ && lower !~ /^[[:space:]]*$/) other_fields++
+                }
+
+                # Versões antigas acrescentavam Enabled a blocos comentados.
+                # Comente apenas o campo órfão; nunca reative o repositório.
+                orphan = (!other_fields && $0 ~ /enterprise\.proxmox\.com/)
+                output = ""
+                found = 0
+                for (i = 1; i <= count; i++) {
+                    if (tolower(line[i]) ~ /^enabled:/) {
+                        if (orphan) {
+                            line[i] = "# " line[i]
+                        } else if (enterprise) {
+                            if (found) continue
+                            line[i] = "Enabled: no"
                             found = 1
                         }
-                        output = output (i > 1 ? "\n" : "") line[i]
                     }
-                    if (!found) output = output "\nEnabled: false"
-                    print output
-                } else {
-                    print
+                    output = output (output != "" ? "\n" : "") line[i]
                 }
+                if (enterprise && !found) output = output "\nEnabled: no"
+                print output
             }
         ' "$file" > "$temp"
         cat "$temp" > "$file"

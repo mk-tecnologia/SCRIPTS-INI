@@ -58,6 +58,24 @@ O perfil PBS valida `proxmox-backup-manager`, usa `mk.intranet` como domínio
 padrão e prioriza interfaces `nic*` ou bridges `vmbr*`. O comando instalado é
 `pbs-setup`.
 
+### Reexecução e repositórios Enterprise
+
+Os perfis PVE e PBS desativam entradas Enterprise em arquivos `.sources`
+com `Enabled: no`, preservando blocos já comentados e repositórios públicos.
+Antes de alterar os arquivos, salvam uma cópia de `/etc/apt` no diretório
+de backup informado pelo assistente.
+
+Versões anteriores podiam acrescentar `Enabled: false` a um bloco inteiramente
+comentado, causando `Malformed stanza ... (type)` ao executar o APT novamente.
+A partir da versão 1.4.4, os assistentes corrigem esse caso comentando o campo
+órfão, sem reativar o
+repositório. Outros erros de sintaxe precisam ser examinados separadamente.
+
+O instalador usa a última release por padrão: baixar `install.sh` de `main`
+não seleciona automaticamente os assistentes de `main`. Para testar uma
+correção já publicada nessa branch, use `--ref main` junto de `--proxmox`
+ou `--pbs`.
+
 ### Community post-install opcional
 
 Durante a instalação, os perfis PVE e PBS perguntam se devem executar, depois
