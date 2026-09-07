@@ -2,7 +2,7 @@
 # setup-pbs.sh — Pós-instalação automatizada do Proxmox Backup Server
 set -Eeuo pipefail
 
-APP_VERSION="1.4.4"
+APP_VERSION="1.4.5"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -245,7 +245,7 @@ if ! grep -qxF "$PUBLIC_KEY" /root/.ssh/authorized_keys; then
     printf '%s\n' "$PUBLIC_KEY" >> /root/.ssh/authorized_keys
 fi
 
-log 'Configurando o acesso SSH do root somente com chave pública'
+log 'Desativando autenticação SSH por senha e habilitando chave pública'
 backup_file /etc/ssh/sshd_config
 if [[ -e /etc/ssh/sshd_config.d/99-mktecnologia.conf ]]; then
     backup_file /etc/ssh/sshd_config.d/99-mktecnologia.conf
@@ -258,7 +258,14 @@ awk '
         print "# PermitRootLogin yes"
         print "PermitRootLogin prohibit-password"
     }
-    BEGIN { global = 1; configured = 0 }
+    BEGIN {
+        global = 1
+        configured = 0
+        # O primeiro valor global prevalece, inclusive antes dos Includes.
+        print "PasswordAuthentication no"
+        print "KbdInteractiveAuthentication no"
+        print "PubkeyAuthentication yes"
+    }
     {
         normalized = tolower($0)
         sub(/^[[:space:]]+/, "", normalized)
@@ -268,6 +275,7 @@ awk '
         }
         candidate = normalized
         sub(/^#[[:space:]]*/, "", candidate)
+        if (global && candidate ~ /^(passwordauthentication|kbdinteractiveauthentication|challengeresponseauthentication|pubkeyauthentication)[[:space:]]+/) next
         if (global && candidate ~ /^permitrootlogin[[:space:]]+/) {
             if (!configured) { print_root_login_config(); configured = 1 }
             next
@@ -289,6 +297,11 @@ sshd -t
 EFFECTIVE_ROOT_LOGIN=$(sshd -T | awk '$1 == "permitrootlogin" {print $2; exit}')
 [[ $EFFECTIVE_ROOT_LOGIN == without-password || $EFFECTIVE_ROOT_LOGIN == prohibit-password ]] \
     || die "configuração SSH efetiva inesperada: PermitRootLogin $EFFECTIVE_ROOT_LOGIN"
+EFFECTIVE_SSH_AUTH=$(sshd -T)
+for EXPECTED_SSH_AUTH in 'passwordauthentication no' 'kbdinteractiveauthentication no' 'pubkeyauthentication yes'; do
+    grep -qxF "$EXPECTED_SSH_AUTH" <<< "$EFFECTIVE_SSH_AUTH" \
+        || die "configuração SSH efetiva inesperada; esperado: $EXPECTED_SSH_AUTH"
+done
 systemctl restart ssh
 
 log 'Configurando fastfetch no MOTD dinâmico'

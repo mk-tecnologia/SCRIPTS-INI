@@ -167,9 +167,14 @@ desfaz configurações já aplicadas ao sistema nem remove os backups.
 
 A chave pública de `marcos@mktecnologia.net.br` é adicionada de forma
 idempotente a `/root/.ssh/authorized_keys`. Chaves existentes são preservadas.
-O login SSH do root fica permitido somente por chave pública:
+A autenticação SSH por senha é desativada globalmente nos três perfis, incluindo
+a alternativa interativa que pode solicitar senha via PAM. Chave pública permanece
+habilitada, e o root mantém a restrição `prohibit-password`:
 
 ```text
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
 PermitRootLogin prohibit-password
 ```
 
@@ -182,3 +187,9 @@ O `PermitRootLogin prohibit-password` é gravado diretamente no arquivo
 valor efetivamente interpretado pelo servidor (`sshd -T`) antes de reiniciá-lo.
 A alternativa `# PermitRootLogin yes` permanece logo acima, comentada, para
 facilitar uma alteração emergencial feita conscientemente pelo administrador.
+
+As diretivas globais de autenticação são gravadas no início de `sshd_config`,
+antes dos `Include`, e verificadas com `sshd -T`. Blocos `Match` existentes
+são preservados e podem estabelecer exceções por usuário ou origem; examine-os
+com `sshd -T -C user=USUARIO,host=HOST,addr=IP`. Antes de aplicar, confirme que
+os usuários necessários conseguem acessar por chave pública.
