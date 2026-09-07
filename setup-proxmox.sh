@@ -2,7 +2,7 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.4.5"
+APP_VERSION="1.4.6"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -77,8 +77,9 @@ disable_enterprise_repository() {
                 }
 
                 # Versões antigas acrescentavam Enabled a blocos comentados.
-                # Comente apenas o campo órfão; nunca reative o repositório.
-                orphan = (!other_fields && $0 ~ /enterprise\.proxmox\.com/)
+                # Uma linha vazia pode separar o campo da URL Enterprise.
+                # Comente apenas campos Enabled sem outros campos ativos.
+                orphan = !other_fields
                 output = ""
                 found = 0
                 for (i = 1; i <= count; i++) {

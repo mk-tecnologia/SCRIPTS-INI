@@ -68,8 +68,9 @@ de backup informado pelo assistente.
 Versões anteriores podiam acrescentar `Enabled: false` a um bloco inteiramente
 comentado, causando `Malformed stanza ... (type)` ao executar o APT novamente.
 A partir da versão 1.4.4, os assistentes corrigem esse caso comentando o campo
-órfão, sem reativar o
-repositório. Outros erros de sintaxe precisam ser examinados separadamente.
+órfão, sem reativar o repositório. A versão 1.4.6 também corrige o campo
+órfão separado do bloco comentado por linhas vazias, como em `ceph.sources`.
+Outros erros de sintaxe precisam ser examinados separadamente.
 
 O instalador usa a última release por padrão: baixar `install.sh` de `main`
 não seleciona automaticamente os assistentes de `main`. Para testar uma
@@ -100,7 +101,7 @@ envio de diagnósticos permaneça desativado.
 
 Antes do primeiro `apt-get update`, os perfis PVE e PBS desativam o repositório
 Enterprise: entradas legadas são comentadas e arquivos `.sources` recebem
-`Enabled: false` somente nos blocos que apontam para
+`Enabled: no` somente nos blocos que apontam para
 `enterprise.proxmox.com`, incluindo os repositórios Enterprise do Ceph. Blocos
 No-Subscription presentes no mesmo arquivo são preservados. O conteúdo anterior
 de `/etc/apt` permanece no backup da execução. Essa política pressupõe que o
