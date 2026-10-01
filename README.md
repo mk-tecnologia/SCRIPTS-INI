@@ -42,6 +42,8 @@ O pacote de informações do sistema é selecionado pela base em `/etc/os-releas
 Proxmox VE 8 (Debian 12) instala `neofetch`; Proxmox VE 9 (Debian 13)
 instala `fastfetch`. O MOTD executa o mesmo comando instalado. Essa seleção
 também se aplica ao perfil PBS; o perfil Debian 13 mantém `fastfetch`.
+Os perfis PVE/PBS instalam os pacotes básicos com `--no-install-recommends`
+para evitar ferramentas gráficas opcionais do Neofetch no servidor.
 
 Para somente instalar o comando administrativo:
 

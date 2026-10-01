@@ -2,7 +2,7 @@
 # setup-proxmox.sh — Pós-instalação automatizada do Proxmox VE
 set -Eeuo pipefail
 
-APP_VERSION="1.4.7"
+APP_VERSION="1.4.8"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -46,6 +46,7 @@ restore_issue_lock() {
     fi
 }
 trap restore_issue_lock EXIT
+trap 'printf "Erro: %s, linha %s (código %s). Execução interrompida.\n" "$SCRIPT_NAME" "$LINENO" "$?" >&2' ERR
 
 disable_enterprise_repository() {
     local file temp
@@ -243,7 +244,7 @@ FETCH_COMMAND=$(
 )
 log "Instalando vim e $FETCH_COMMAND"
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y vim "$FETCH_COMMAND"
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends vim "$FETCH_COMMAND"
 
 log 'Cadastrando a chave pública SSH para o usuário root'
 mkdir -p /root/.ssh
@@ -302,10 +303,10 @@ cat "$SSHD_CONFIG_TEMP" > /etc/ssh/sshd_config
 rm -f "$SSHD_CONFIG_TEMP"
 
 sshd -t
-EFFECTIVE_ROOT_LOGIN=$(sshd -T | awk '$1 == "permitrootlogin" {print $2; exit}')
+EFFECTIVE_SSH_AUTH=$(sshd -T)
+EFFECTIVE_ROOT_LOGIN=$(awk '$1 == "permitrootlogin" {print $2}' <<< "$EFFECTIVE_SSH_AUTH")
 [[ $EFFECTIVE_ROOT_LOGIN == without-password || $EFFECTIVE_ROOT_LOGIN == prohibit-password ]] \
     || die "configuração SSH efetiva inesperada: PermitRootLogin $EFFECTIVE_ROOT_LOGIN"
-EFFECTIVE_SSH_AUTH=$(sshd -T)
 for EXPECTED_SSH_AUTH in 'passwordauthentication no' 'kbdinteractiveauthentication no' 'pubkeyauthentication yes'; do
     grep -qxF "$EXPECTED_SSH_AUTH" <<< "$EFFECTIVE_SSH_AUTH" \
         || die "configuração SSH efetiva inesperada; esperado: $EXPECTED_SSH_AUTH"
