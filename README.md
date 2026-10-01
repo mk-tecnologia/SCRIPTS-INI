@@ -1,7 +1,7 @@
 # SCRIPTS-INI
 
 Assistentes de pós-instalação para Debian 13, Proxmox VE e Proxmox Backup Server. Instalam os pacotes
-básicos e configuram SSH, chave pública do root, fastfetch, MOTD, console,
+básicos e configuram SSH, chave pública do root, fastfetch/neofetch, MOTD, console,
 aliases e nome de domínio. O perfil Debian também ajusta o GRUB.
 
 ## Instalação rápida
@@ -37,6 +37,11 @@ bash /tmp/scripts-ini-install.sh --proxmox
 O perfil valida a presença do Proxmox, usa `mk.intranet` como domínio
 padrão e prioriza interfaces bridge `vmbr*`. Quando existe mais de uma bridge,
 apresenta um menu; com apenas uma, seleciona-a automaticamente.
+
+O pacote de informações do sistema é selecionado pela base em `/etc/os-release`:
+Proxmox VE 8 (Debian 12) instala `neofetch`; Proxmox VE 9 (Debian 13)
+instala `fastfetch`. O MOTD executa o mesmo comando instalado. Essa seleção
+também se aplica ao perfil PBS; o perfil Debian 13 mantém `fastfetch`.
 
 Para somente instalar o comando administrativo:
 

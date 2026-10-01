@@ -2,7 +2,7 @@
 # setup-pbs.sh — Pós-instalação automatizada do Proxmox Backup Server
 set -Eeuo pipefail
 
-APP_VERSION="1.4.6"
+APP_VERSION="1.4.7"
 SCRIPT_NAME=${0##*/}
 DOMAIN=""
 NETWORK_INTERFACE=""
@@ -234,9 +234,17 @@ read -r -p 'Aplicar os ajustes? [S/n] ' CONFIRM
 mkdir -p "$BACKUP_DIR"
 disable_enterprise_repository
 
-log 'Instalando vim, fastfetch e qemu-guest-agent'
+# PBS baseado em Debian 12 usa neofetch; Debian 13 usa fastfetch.
+FETCH_COMMAND=$(
+    . /etc/os-release
+    case ${VERSION_ID:-} in
+        (12) printf 'neofetch' ;;
+        (*) printf 'fastfetch' ;;
+    esac
+)
+log "Instalando vim, $FETCH_COMMAND e qemu-guest-agent"
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y vim fastfetch qemu-guest-agent
+DEBIAN_FRONTEND=noninteractive apt-get install -y vim "$FETCH_COMMAND" qemu-guest-agent
 
 log 'Cadastrando a chave pública SSH para o usuário root'
 mkdir -p /root/.ssh
@@ -305,12 +313,12 @@ for EXPECTED_SSH_AUTH in 'passwordauthentication no' 'kbdinteractiveauthenticati
 done
 systemctl restart ssh
 
-log 'Configurando fastfetch no MOTD dinâmico'
+log "Configurando $FETCH_COMMAND no MOTD dinâmico"
 backup_file /etc/update-motd.d/10-uname
-cat > /etc/update-motd.d/10-uname <<'EOF'
+cat > /etc/update-motd.d/10-uname <<EOF
 #!/bin/sh
 echo ""
-fastfetch
+$FETCH_COMMAND
 EOF
 chmod 0755 /etc/update-motd.d/10-uname
 
